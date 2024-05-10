@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 
+import { Toaster } from 'sonner';
+
 import '../styles/globals.css';
 
 import { cn } from '@/lib/utils';
@@ -32,6 +34,7 @@ export default function RootLayout({
           <Header />
           {children}
           <Footer />
+          <Toaster position="top-center" richColors />
         </div>
       </body>
     </html>
