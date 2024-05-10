@@ -55,7 +55,7 @@ export function Footer() {
             </h3>
             <ul className="text-gray-500 dark:text-gray-400">
               <li className="mb-4">
-                <Link href="/privacy" className="hover:underline">
+                <Link href="/privacy-policy" className="hover:underline">
                   Privacy Policy
                 </Link>
               </li>
