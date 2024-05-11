@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "RecipeBudd",
+    "slug": "recipe-budd",
+    "version": "1.0.1",
+    "orientation": "portrait",
+    "icon": "./src/assets/images/icon.png",
+    "scheme": "recipe-budd",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./src/assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.hqasmei.recipebudd"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.hqasmei.recipebudd"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./src/assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photo library to let you personalize recipes with your own images, stored only on your device."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "04bb3914-c2ec-4512-8c13-6f8e061ff9ad"
+      }
+    }
+  }
+}
