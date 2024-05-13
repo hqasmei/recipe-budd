@@ -71,8 +71,7 @@ export default function Home() {
       },
     });
   }, [navigation]);
-
-  
+ 
   return (
     <>
       <Container>

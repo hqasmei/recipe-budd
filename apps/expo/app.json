@@ -34,7 +34,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "The app accesses your photo library to let you personalize recipes with your own images, stored only on your device."
+          "photosPermission": "The app accesses your photo library to let you personalize recipes with your own images."
         }
       ]
     ],

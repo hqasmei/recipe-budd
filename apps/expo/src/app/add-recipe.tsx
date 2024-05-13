@@ -14,31 +14,87 @@ import {
 } from "react-native";
 import { Input } from "@/components/ui/input";
 import { Container } from "@/components/Container";
-import { type Recipe } from "@/lib/types";
 
+import {
+  useForm,
+  Controller,
+  useFieldArray,
+  SubmitHandler,
+} from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { cn } from "@/lib/utils";
 const RECIPES_KEY = "recipes";
+
+const recipeSchema = z.object({
+  image: z.string().min(1, "An image is required"),
+  recipeName: z.string().min(1, "Recipe name is required"),
+  time: z.string().min(1, "Time is required"),
+  ingredients: z.array(
+    z.object({
+      detail: z.string().min(1, "Ingredient detail is required"),
+    })
+  ),
+  instructions: z.array(
+    z.object({
+      step: z.string().min(1, "Instruction step is required"),
+    })
+  ),
+});
+
+type RecipeForm = {
+  image: string;
+  recipeName: string;
+  time: string;
+  ingredients: Array<{ detail: string }>;
+  instructions: Array<{ step: string }>;
+};
 
 export default function AddRecipe() {
   const [image, setImage] = useState("");
-  const [recipeName, setRecipeName] = useState("");
-  const [time, setTime] = useState("");
-  const [ingredients, setIngredients] = useState<string[]>([""]);
-  const [instructions, setInstructions] = useState<string[]>([""]);
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    reset,
+    formState: { errors },
+  } = useForm<RecipeForm>({
+    resolver: zodResolver(recipeSchema),
+    defaultValues: {
+      image: "",
+      recipeName: "",
+      time: "",
+      ingredients: [{ detail: "" }],
+      instructions: [{ step: "" }],
+    },
+  });
+
+  const {
+    fields: ingredientFields,
+    append: appendIngredient,
+    remove: removeIngredient,
+  } = useFieldArray({
+    control,
+    name: "ingredients",
+  });
+
+  const {
+    fields: instructionFields,
+    append: appendInstruction,
+    remove: removeInstruction,
+  } = useFieldArray({
+    control,
+    name: "instructions",
+  });
 
   const navigation = useNavigation();
 
-  async function getPermissionAsync() {
+  async function pickImage() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
       alert("Sorry, we need camera roll permissions to make this work!");
-      return false;
+      return;
     }
-    return true;
-  }
-
-  async function pickImage() {
-    const hasPermission = await getPermissionAsync();
-    if (!hasPermission) return;
 
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -49,12 +105,11 @@ export default function AddRecipe() {
 
     if (!result.canceled) {
       setImage(result.assets[0].uri);
-    } else {
-      console.log("Image picking was canceled.");
+      setValue("image", result.assets[0].uri);
     }
   }
 
-  const createSlug = (name: string, existingRecipes: Recipe[]): string => {
+  const createSlug = (name: string, existingRecipes: any[]): string => {
     let slug = name
       .toLowerCase()
       .replace(/[^a-z0-9]+/gi, "-")
@@ -68,55 +123,18 @@ export default function AddRecipe() {
     return uniqueSlug;
   };
 
-  const handleIngredientChange = ({
-    value,
-    index,
-  }: {
-    value: string;
-    index: number;
-  }) => {
-    const updatedIngredients = ingredients.map((item, i) =>
-      i === index ? value : item
-    );
-    setIngredients(updatedIngredients);
-  };
-
-  const addIngredient = () => {
-    setIngredients([...ingredients, ""]);
-  };
-
-  const removeIngredient = (index: number) => {
-    setIngredients(ingredients.filter((_, i) => i !== index));
-  };
-
-  const handleInstructionChange = ({
-    value,
-    index,
-  }: {
-    value: string;
-    index: number;
-  }) => {
-    const updatedInstructions = instructions.map((step, i) =>
-      i === index ? value : step
-    );
-    setInstructions(updatedInstructions);
-  };
-
-  const addInstruction = () => {
-    setInstructions([...instructions, ""]);
-  };
-
-  const removeInstruction = (index: number) => {
-    setInstructions(instructions.filter((_, i) => i !== index));
-  };
-
-  const handleSave = async (): Promise<void> => {
+  const onSubmit: SubmitHandler<RecipeForm> = async (data) => {
     const existingRecipesJSON = await AsyncStorage.getItem(RECIPES_KEY);
-    const existingRecipes: Recipe[] = existingRecipesJSON
+    const existingRecipes: RecipeForm[] = existingRecipesJSON
       ? JSON.parse(existingRecipesJSON)
       : [];
+    const image = data.image;
+    const recipeName = data.recipeName;
+    const time = data.time;
+    const ingredients = data.ingredients;
+    const instructions = data.instructions;
     const slug = createSlug(recipeName, existingRecipes);
-    const newRecipe: Recipe = {
+    const newRecipe = {
       image,
       recipeName,
       time,
@@ -124,34 +142,30 @@ export default function AddRecipe() {
       instructions,
       slug,
     };
-    console.log(newRecipe);
-    // await AsyncStorage.setItem(
-    //   RECIPES_KEY,
-    //   JSON.stringify([...existingRecipes, newRecipe])
-    // );
 
-    // setImage("");
-    // setRecipeName("");
-    // setTime("");
-    // setIngredients([]);
-    // setInstructions([]);
-    // navigation.goBack();
+    await AsyncStorage.setItem(
+      RECIPES_KEY,
+      JSON.stringify([...existingRecipes, newRecipe])
+    );
+
+    reset();
+    navigation.goBack();
   };
 
   useLayoutEffect(() => {
     navigation.setOptions({
       headerLeft: () => (
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text>Cancel</Text>
+          <Text className="text-foreground">Cancel</Text>
         </TouchableOpacity>
       ),
       headerRight: () => (
-        <TouchableOpacity onPress={handleSave}>
+        <TouchableOpacity onPress={handleSubmit(onSubmit)}>
           <Text className="text-blue-500">Save</Text>
         </TouchableOpacity>
       ),
     });
-  }, [navigation]);
+  }, [navigation, handleSubmit, onSubmit]);
 
   return (
     <Container>
@@ -161,64 +175,98 @@ export default function AddRecipe() {
         keyboardVerticalOffset={Platform.OS === "ios" ? 70 : 0}
       >
         <ScrollView className="flex flex-1 flex-col">
-          <TouchableOpacity
-            onPress={pickImage}
-            className="m-4 flex h-48 flex-col items-center justify-center rounded-xl  border border-dashed border-muted-foreground  text-lg"
-          >
-            {image === "" ? (
-              <>
-                <View className="mb-4">
-                  <ImageIcon className="stroke-foreground" />
-                </View>
-                <View>
-                  <Text
-                    className="text-foreground"
-                    style={{ fontFamily: "Quicksand-SemiBold" }}
-                  >
-                    Add Cover Image
-                  </Text>
-                </View>
-              </>
-            ) : (
-              <Image
-                source={{ uri: image }}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  resizeMode: "cover",
-                  borderRadius: 8,
-                }} // Adjust borderRadius as needed
-              />
+          <View className="mb-2">
+            <TouchableOpacity
+              onPress={pickImage}
+              className={cn(
+                "mt-4 mx-4 flex h-48 flex-col items-center justify-center rounded-xl  border-muted-foreground  text-lg",
+                image === "" && "border border-dashed"
+              )}
+            >
+              {image === "" ? (
+                <>
+                  <View>
+                    <ImageIcon className="stroke-foreground" />
+                  </View>
+                  <View>
+                    <Text
+                      className="text-foreground"
+                      style={{ fontFamily: "Quicksand-SemiBold" }}
+                    >
+                      Add Cover Image
+                    </Text>
+                  </View>
+                </>
+              ) : (
+                <Image
+                  source={{ uri: image }}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    resizeMode: "cover",
+                    borderRadius: 8,
+                  }} // Adjust borderRadius as needed
+                />
+              )}
+            </TouchableOpacity>
+            {errors.image && image === "" && (
+              <Text className="text-red-500 text-sm mt-2 px-4">
+                {errors.image.message}
+              </Text>
             )}
-          </TouchableOpacity>
-          <View className="px-4 py-2">
-            <Text
-              className="mb-1 text-foreground"
-              style={{ fontFamily: "Quicksand-SemiBold" }}
-            >
-              Recipe Name
-            </Text>
-            <Input
-              onChangeText={setRecipeName}
-              value={recipeName}
-              placeholder="Enter recipe name"
-              className="flex h-10 w-full rounded-md  px-3 py-2"
-            />
           </View>
-          <View className="px-4 py-2">
-            <Text
-              className="mb-1 text-foreground"
-              style={{ fontFamily: "Quicksand-SemiBold" }}
-            >
-              Time
-            </Text>
-            <Input
-              onChangeText={setTime}
-              value={time}
-              placeholder="Enter cooking time"
-              className="flex h-10 w-full rounded-md  px-3 py-2"
-            />
-          </View>
+
+          <Controller
+            control={control}
+            render={({ field: { onChange, value }, fieldState }) => (
+              <View className="px-4 py-2">
+                <Text
+                  className="mb-1 text-foreground"
+                  style={{ fontFamily: "Quicksand-SemiBold" }}
+                >
+                  Recipe Name
+                </Text>
+                <Input
+                  onChangeText={onChange}
+                  value={value}
+                  placeholder="Enter recipe name"
+                  className="flex h-10 w-full rounded-md  px-3 py-2"
+                />
+                {fieldState.error?.message && (
+                  <Text className="text-red-500 text-sm mt-1">
+                    {fieldState.error.message}
+                  </Text>
+                )}
+              </View>
+            )}
+            name="recipeName"
+          />
+
+          <Controller
+            control={control}
+            render={({ field: { onChange, value }, fieldState }) => (
+              <View className="px-4 py-2">
+                <Text
+                  className="mb-1 text-foreground"
+                  style={{ fontFamily: "Quicksand-SemiBold" }}
+                >
+                  Time
+                </Text>
+                <Input
+                  onChangeText={onChange}
+                  value={value}
+                  placeholder="Enter cooking time"
+                  className="flex h-10 w-full rounded-md  px-3 py-2"
+                />
+                {fieldState.error?.message && (
+                  <Text className="text-red-500 text-sm mt-1">
+                    {fieldState.error.message}
+                  </Text>
+                )}
+              </View>
+            )}
+            name="time"
+          />
 
           <View className="flex flex-1 flex-col px-4 py-2">
             <Text
@@ -227,17 +275,28 @@ export default function AddRecipe() {
             >
               Ingredients
             </Text>
-            {ingredients.map((ingredient, index) => (
-              <View key={index} className="flex flex-row items-center py-2">
-                <Input
-                  onChangeText={(text) =>
-                    handleIngredientChange({ value: text, index })
-                  }
-                  value={ingredient}
-                  placeholder="Enter ingredient details (e.g., 2 cups sugar)"
-                  className="flex-1 h-10 rounded-md py-2"
+            {ingredientFields.map((field, index) => (
+              <View key={field.id} className="flex flex-row items-center py-2">
+                <Controller
+                  control={control}
+                  name={`ingredients.${index}.detail`} // Corrected field name
+                  render={({ field, fieldState }) => (
+                    <View className="flex-1">
+                      <Input
+                        onChangeText={field.onChange}
+                        value={field.value}
+                        placeholder="Enter ingredient details (e.g., 2 cups sugar)"
+                        className="flex-1 h-10 rounded-md py-2"
+                      />
+                      {fieldState.error?.message && (
+                        <Text className="text-red-500 text-sm mt-1">
+                          {fieldState.error.message}
+                        </Text>
+                      )}
+                    </View>
+                  )}
                 />
-                {ingredients.length > 1 && (
+                {ingredientFields.length > 1 && (
                   <TouchableOpacity
                     onPress={() => removeIngredient(index)}
                     className="ml-2 bg-danger p-2 rounded-md"
@@ -247,8 +306,9 @@ export default function AddRecipe() {
                 )}
               </View>
             ))}
+
             <TouchableOpacity
-              onPress={addIngredient}
+              onPress={() => appendIngredient({ detail: "" })}
               className="my-2 flex items-center justify-center rounded-md bg-background border border-foreground/20 py-3"
             >
               <Text
@@ -267,17 +327,28 @@ export default function AddRecipe() {
             >
               Instructions
             </Text>
-            {instructions.map((instruction, index) => (
-              <View key={index} className="flex flex-row items-center py-2">
-                <Input
-                  onChangeText={(text) =>
-                    handleInstructionChange({ value: text, index })
-                  }
-                  value={instruction}
-                  placeholder={`Enter instruction details (e.g., Wash the potatoes`}
-                  className="flex-1 h-10 rounded-md py-2"
+            {instructionFields.map((field, index) => (
+              <View key={field.id} className="flex flex-row items-center py-2">
+                <Controller
+                  control={control}
+                  name={`instructions.${index}.step`} // Corrected field name
+                  render={({ field, fieldState }) => (
+                    <View className="flex-1">
+                      <Input
+                        onChangeText={field.onChange}
+                        value={field.value}
+                        placeholder="Enter instruction details (e.g., Wash the potatoes)"
+                        className="flex-1 h-10 rounded-md py-2"
+                      />
+                      {fieldState.error?.message && (
+                        <Text className="text-red-500 text-sm mt-1">
+                          {fieldState.error.message}
+                        </Text>
+                      )}
+                    </View>
+                  )}
                 />
-                {instructions.length > 1 && (
+                {instructionFields.length > 1 && (
                   <TouchableOpacity
                     onPress={() => removeInstruction(index)}
                     className="ml-2 bg-danger p-2 rounded-md"
@@ -287,9 +358,8 @@ export default function AddRecipe() {
                 )}
               </View>
             ))}
-
             <TouchableOpacity
-              onPress={addInstruction}
+              onPress={() => appendInstruction({ step: "" })}
               className="my-2 flex items-center justify-center rounded-md border border-foreground/20 py-3"
             >
               <Text

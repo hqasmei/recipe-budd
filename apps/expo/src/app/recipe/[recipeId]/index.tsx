@@ -1,7 +1,14 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Stack, router, usePathname, useNavigation, Link } from "expo-router";
+import {
+  Stack,
+  router,
+  usePathname,
+  useNavigation,
+  Link,
+  useFocusEffect,
+} from "expo-router";
 import { SquarePen, ChevronLeft, Clock4 } from "@/components/Icons";
-import { useEffect, useState, useLayoutEffect } from "react";
+import { useEffect, useState, useLayoutEffect, useCallback } from "react";
 import { View, Text, Image, TouchableOpacity, ScrollView } from "react-native";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Container } from "@/components/Container";
@@ -27,48 +34,53 @@ export default function Recipe() {
   const [checkedInstructions, setCheckedInstructions] =
     useState<CheckboxStates>({});
 
-  const handleIngredientChange = (ingredient: string) => {
+  const handleIngredientChange = (key: string) => {
     setCheckedIngredients((prev) => ({
       ...prev,
-      [ingredient]: !prev[ingredient],
+      [key]: !prev[key],
     }));
   };
 
-  const handleInstructionChange = (instruction: string) => {
+  const handleInstructionChange = (key: string) => {
     setCheckedInstructions((prev) => ({
       ...prev,
-      [instruction]: !prev[instruction],
+      [key]: !prev[key],
     }));
   };
 
-  useEffect(() => {
-    const fetchRecipe = async () => {
-      try {
-        const storedRecipesJSON = await AsyncStorage.getItem("recipes");
-        if (storedRecipesJSON) {
-          const storedRecipes = JSON.parse(storedRecipesJSON) as RecipeType[];
-          const foundRecipe = storedRecipes.find((item) => item.slug === id);
-          setRecipe(foundRecipe as RecipeType);
-        }
-      } catch (error) {
-        console.error("Error fetching recipe:", error);
+  const fetchRecipe = useCallback(async () => {
+    try {
+      const storedRecipesJSON = await AsyncStorage.getItem("recipes");
+      if (storedRecipesJSON) {
+        const storedRecipes = JSON.parse(storedRecipesJSON) as RecipeType[];
+        const foundRecipe = storedRecipes.find((item) => item.slug === id);
+        setRecipe(foundRecipe as RecipeType);
       }
-    };
-    fetchRecipe();
+    } catch (error) {
+      console.error("Error fetching recipe:", error);
+    }
   }, [id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchRecipe();
+    }, [fetchRecipe])
+  );
 
   useEffect(() => {
     if (recipe) {
       const ingredientChecks: CheckboxStates = {};
-      recipe.ingredients.forEach((ingredient) => {
-        ingredientChecks[ingredient] = false;
-      });
-      setCheckedIngredients(ingredientChecks);
-
       const instructionChecks: CheckboxStates = {};
-      recipe.instructions.forEach((instruction) => {
-        instructionChecks[instruction] = false;
+
+      recipe.ingredients.forEach((ingredient, index) => {
+        ingredientChecks[`ingredient-${index}`] = false; // Initialize unchecked
       });
+
+      recipe.instructions.forEach((instruction, index) => {
+        instructionChecks[`instruction-${index}`] = false; // Initialize unchecked
+      });
+
+      setCheckedIngredients(ingredientChecks);
       setCheckedInstructions(instructionChecks);
     }
   }, [recipe]);
@@ -205,54 +217,41 @@ export default function Recipe() {
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="ingredients">
-                <View className="flex flex-col gap-3 mt-4  ">
+                <View className="flex flex-col gap-4 my-4 mx-2">
                   {recipe?.ingredients.map((ingredient, idx) => (
-                    <View
-                      key={idx}
-                      className="flex flex-row items-start gap-4 mx-4"
-                    >
+                    <View key={idx} className="flex flex-row items-start gap-4">
                       <Checkbox
-                        checked={checkedIngredients[ingredient]}
+                        checked={checkedIngredients[`ingredients-${idx}`]}
                         onCheckedChange={() =>
-                          handleIngredientChange(ingredient)
+                          handleIngredientChange(`ingredients-${idx}`)
                         }
                         className="mt-[3px]"
                       />
                       <Text
                         className={cn(
-                          "text-foreground text-xl",
-                          checkedIngredients[ingredient] && "line-through"
+                          "text-foreground text-xl flex-1",
+                          checkedIngredients[`ingredients-${idx}`] &&
+                            "line-through"
                         )}
                         style={{ fontFamily: "Quicksand-SemiBold" }}
                       >
-                        {ingredient}
+                        {ingredient.detail}
                       </Text>
                     </View>
                   ))}
                 </View>
               </TabsContent>
+
               <TabsContent value="instructions">
-                <View className="flex flex-col gap-3 mt-4">
+                <View className="flex flex-col gap-4 my-4 mx-2">
                   {recipe?.instructions.map((instruction, idx) => (
-                    <View
-                      key={idx}
-                      className="flex flex-row items-start gap-4 mx-4"
-                    >
-                      <Checkbox
-                        checked={checkedInstructions[instruction]}
-                        onCheckedChange={() =>
-                          handleInstructionChange(instruction)
-                        }
-                        className="mt-[3px]"
-                      />
+                    <View key={idx} className="flex flex-row items-start gap-4">
+                      <Text className="text-xl">{idx + 1}.</Text>
                       <Text
-                        className={cn(
-                          "text-foreground text-xl",
-                          checkedInstructions[instruction] && "line-through"
-                        )}
+                        className="text-foreground text-xl flex-1"
                         style={{ fontFamily: "Quicksand-SemiBold" }}
                       >
-                        {instruction}
+                        {instruction.step}
                       </Text>
                     </View>
                   ))}

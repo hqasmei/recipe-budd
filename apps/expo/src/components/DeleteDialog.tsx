@@ -15,24 +15,28 @@ import { Trash2 } from "@/components/Icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useState } from "react";
 import { Recipe } from "@/lib/types";
-import { Pressable } from "react-native";
+import { Pressable, View } from "react-native";
 import { router } from "expo-router";
 
 export default function DeleteDialog({ recipeId }: { recipeId: string }) {
   const [isOpen, setIsOpen] = useState(false);
 
   const handleDelete = async () => {
-    const storedRecipesJSON = await AsyncStorage.getItem("recipes");
-    const storedRecipes = storedRecipesJSON
-      ? JSON.parse(storedRecipesJSON)
-      : [];
-    const filteredRecipes = storedRecipes.filter(
-      (recipe: Recipe) => recipe.slug !== recipeId
-    );
-    console.log("Filtered recipes:", filteredRecipes);
-    await AsyncStorage.setItem("recipes", JSON.stringify(filteredRecipes));
-    setIsOpen(false); // Close the dialog
-    router.back();
+    try {
+      const storedRecipesJSON = await AsyncStorage.getItem("recipes");
+      const storedRecipes = storedRecipesJSON
+        ? JSON.parse(storedRecipesJSON)
+        : [];
+      const filteredRecipes = storedRecipes.filter(
+        (recipe: Recipe) => recipe.slug !== recipeId
+      );
+
+      await AsyncStorage.setItem("recipes", JSON.stringify(filteredRecipes));
+      setIsOpen(false);  
+      router.back();  
+    } catch (error) {
+      console.error("Failed to delete the recipe:", error);
+    }
   };
 
   return (
@@ -51,16 +55,18 @@ export default function DeleteDialog({ recipeId }: { recipeId: string }) {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>
-            <Pressable onPress={() => setIsOpen(false)}>
-              <Text>Cancel</Text>
-            </Pressable>
-          </AlertDialogCancel>
-          <AlertDialogAction className="bg-red-500">
-            <Pressable onPress={handleDelete}>
-              <Text>Continue</Text>
-            </Pressable>
-          </AlertDialogAction>
+          <View className="flex flex-row items-center justify-evenly gap-2">
+            <AlertDialogCancel className="w-1/2">
+              <Pressable onPress={() => setIsOpen(false)}>
+                <Text>Cancel</Text>
+              </Pressable>
+            </AlertDialogCancel>
+            <AlertDialogAction className="bg-red-500 w-1/2">
+              <Pressable onPress={handleDelete}>
+                <Text>Continue</Text>
+              </Pressable>
+            </AlertDialogAction>
+          </View>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
