@@ -30,10 +30,10 @@ export default function RootLayout({
           inter.className,
         )}
       >
-        <div className="flex flex-col w-full">
-          <Header />
+        <div className="flex flex-col w-full h-screen flex-1 bg-[#FEFEF1]">
+          {/* <Header /> */}
           {children}
-          <Footer />
+          {/* <Footer /> */}
           <Toaster position="top-center" richColors />
         </div>
       </body>
